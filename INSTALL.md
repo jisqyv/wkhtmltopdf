@@ -43,6 +43,23 @@ Prerequisites: Windows
 * Make sure that you can run "git". If not, add it to the PATH or reinstall
   with option "Run Git from the Windows Command Prompt".
 
+Prerequisites: OS X
+-------------------
+
+For the carbon build, you will need to do the following steps:
+* A Mac or a VM with Snow Lepoard (10.6.8) installed
+* Install XCode 3.2.6 available from Apple with a developer account
+* Install [git 1.8.4.2](https://code.google.com/p/git-osx-installer/downloads/detail?name=git-1.8.4.2-intel-universal-snow-leopard.dmg)
+  as newer versions don't work on 10.6
+* Install [Python 2.7.6](https://www.python.org/download/releases/2.7.6/)
+  and run the `Update Shell Profile.command` in `/Applications/Python 2.7`
+  to make it the default Python in the shell.
+* Install [xz 5.0.5](http://sourceforge.net/projects/macpkg/files/XZ/5.0.5/)
+
+For the Cocoa build, you will need to have a recent OS X system with the
+latest XCode available from Apple. Try running ```xcode-select --install```
+to install XCode if you are using OS X 10.9 or later from the shell.
+
 Building
 --------
 

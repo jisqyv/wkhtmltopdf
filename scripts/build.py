@@ -152,6 +152,15 @@ QT_CONFIG = {
         '-no-reduce-exports',
         '-no-rpath',
         '-xplatform win32-g++-4.6'
+    ],
+
+    'osx': [
+        '-no-framework',
+        '-no-dwarf2',
+        '-xrender',                 # xrender support is required
+        '-openssl',                 # load OpenSSL binaries at runtime
+        '-largefile',
+        '-rpath'
     ]
 }
 
@@ -185,7 +194,9 @@ BUILDERS = {
     'precise-amd64':         'linux_schroot',
     'mingw-w64-cross-win32': 'mingw64_cross',
     'mingw-w64-cross-win64': 'mingw64_cross',
-    'posix-local':           'posix_local'
+    'posix-local':           'posix_local',
+    'osx-cocoa-x86-64':      'osx',
+    'osx-carbon-i386':       'osx'
 }
 
 CHROOT_SETUP  = {
@@ -746,6 +757,69 @@ def build_posix_local(config, basedir):
     os.chdir(basedir)
     shell('tar -c -v -f ../wkhtmltox-%s_local-%s.tar wkhtmltox-%s/' % (version, platform.node(), version))
     shell('xz --compress --force --verbose -9 ../wkhtmltox-%s_local-%s.tar' % (version, platform.node()))
+
+# --------------------------------------------------------------- OS X
+
+OSX_CONFIG = {
+    'osx-10.6-carbon-i386':  '-carbon  -platform macx-g++42',
+    'osx-10.7-carbon-i386':  '-carbon  -platform unsupported/macx-clang',
+    'osx-10.8-carbon-i386':  '-carbon  -platform unsupported/macx-clang',
+    'osx-10.9-carbon-i386':  '-carbon  -platform unsupported/macx-clang',
+    'osx-10.7-cocoa-x86-64': '-cocoa   -platform unsupported/macx-clang',
+    'osx-10.8-cocoa-x86-64': '-cocoa   -platform unsupported/macx-clang',
+    'osx-10.9-cocoa-x86-64': '-cocoa   -platform unsupported/macx-clang-libc++'
+}
+
+def check_osx(config):
+    if not platform.system() == 'Darwin' or not platform.mac_ver()[0]:
+        error('This can only be run on a OS X system!')
+
+    osxver = platform.mac_ver()[0][:platform.mac_ver()[0].rindex('.')]
+    osxcfg = config.replace('osx-', 'osx-%s-' % osxver)
+    if not osxcfg in OSX_CONFIG:
+        error('This target is not supported: %s' % osxcfg)
+
+def build_osx(config, basedir):
+    version, simple_version = get_version(basedir)
+
+    osxver = platform.mac_ver()[0][:platform.mac_ver()[0].rindex('.')]
+    osxcfg = config.replace('osx-', 'osx-%s-' % osxver)
+
+    build  = os.path.join(basedir, config, 'qt_build')
+    app    = os.path.join(basedir, config, 'app')
+    dist   = os.path.join(basedir, config, 'wkhtmltox-%s' % version)
+
+    mkdir_p(build)
+    mkdir_p(app)
+
+    rmdir(dist)
+    mkdir_p(os.path.join(dist, 'bin'))
+    mkdir_p(os.path.join(dist, 'include', 'wkhtmltox'))
+    mkdir_p(os.path.join(dist, 'lib'))
+
+    os.chdir(build)
+    if not exists('is_configured'):
+        shell('../../../qt/configure %s' % qt_config('osx', '--prefix=../qt', OSX_CONFIG[osxcfg]))
+        shell('touch is_configured')
+
+    if subprocess.call(['make', '-j%d' % CPU_COUNT]):
+        shell('make -j%d' % CPU_COUNT)
+
+    shell('make install')
+
+    os.chdir(app)
+    shell('rm -f bin/*')
+    os.environ['WKHTMLTOX_VERSION'] = version
+    shell('../qt/bin/qmake ../../../wkhtmltopdf.pro')
+    shell('make -j%d' % CPU_COUNT)
+    shell('cp bin/wkhtmlto* ../wkhtmltox-%s/bin' % version)
+    shell('cp -P bin/libwkhtmltox*.dylib* ../wkhtmltox-%s/lib' % version)
+    shell('cp ../../../include/wkhtmltox/*.h ../wkhtmltox-%s/include/wkhtmltox' % version)
+    shell('cp ../../../include/wkhtmltox/dll*.inc ../wkhtmltox-%s/include/wkhtmltox' % version)
+
+    os.chdir(os.path.join(basedir, config))
+    shell('tar -c -v -f ../wkhtmltox-%s_%s.tar wkhtmltox-%s/' % (version, osxcfg, version))
+    shell('xz --compress --force --verbose -9 ../wkhtmltox-%s_%s.tar' % (version, osxcfg))
 
 # --------------------------------------------------------------- command line
 
